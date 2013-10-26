@@ -198,10 +198,15 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
 					'info_url' => get_option('siteurl'),
 					'cancel_url' => get_option('siteurl') . "?coinbase_ordercancel",
 				);
+				
+				$oauth = new Coinbase_Oauth($this->settings['clientId'], $this->settings['clientSecret'], null);
+				$tokens = unserialize($this->settings['tokens']);
+				if($tokens == "") {
+		                	$woocommerce->add_error(__('Sorry, but there was an error processing your order. Please try again or try a different payment method. (plugin not configured)'));
+		                	return;
+				}
 
 				try {
-					$oauth = new Coinbase_Oauth($this->settings['clientId'], $this->settings['clientSecret'], null);
-					$tokens = unserialize($this->settings['tokens']);
 					$coinbase = new Coinbase($oauth, $tokens);
                                 	$code = $coinbase->createButton($name, $amount, $currency, $custom, $params)->button->code;
                                 } catch (Coinbase_TokensExpiredException $e) {
