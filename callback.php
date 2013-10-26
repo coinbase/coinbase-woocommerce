@@ -23,11 +23,13 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
                                 // The Coinbase plugin is not enabled.
                                 return;
                         }
-                        $bp = $gateways['coinbase'];
+                        $gateway = $gateways['coinbase'];
                         
                         // Verify postback information
                         require_once(plugin_dir_path(__FILE__).'coinbase-php'.DIRECTORY_SEPARATOR.'Coinbase.php');
-                        $coinbase = new Coinbase('fb9c14477034b3b3f979d91ddc988cdd6ad71fe56b64cd6426cdbc0e012d8559');
+                        $oauth = new Coinbase_Oauth($gateway->settings['clientId'], $gateway->settings['clientSecret'], null);
+			$tokens = unserialize($gateway->settings['tokens']);
+                        $coinbase = new Coinbase($oauth, $tokens);
                         $postBody = json_decode(file_get_contents('php://input'));
                         $coinbaseOrderId = $postBody->order->id;
                         $orderInfo = $coinbase->getOrder($coinbaseOrderId);
@@ -57,6 +59,14 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
                 	// When redirecting to the 'your order was successful' page, Coinbase deletes the 'order'
                 	// parameter. Here we restore it so the order received page displays correctly.
                 	$_GET['order'] = $_GET['order']['custom'];
+                } else if(isset($_GET['coinbase_ordercancel'])) {
+                	$order = new WC_Order($_GET['order']['custom']);
+                	
+                	if($order->status == "on-hold" && $order->payment_method == "coinbase") {
+                		$order->cancel_order("User canceled Coinbase order.");
+                	}
+                	
+                	unset($_GET['order']);
                 }
         }
 

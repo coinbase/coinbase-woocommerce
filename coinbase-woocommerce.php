@@ -32,7 +32,14 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
                                 $this->title = $this->settings['title'];
                                 $this->description = "Pay with bitcoin, a virtual currency. <a href='http://bitcoin.org/' target='_blank'>What is bitcoin?</a>";
                          
-                                add_action('woocommerce_update_options_payment_gateways_'.$this->id, array(&$this, 'process_admin_options'));
+                                add_action('woocommerce_update_options_payment_gateways_coinbase', array(&$this, 'process_admin_options'));
+                        }
+                        
+                        function process_admin_options() {
+                        
+                        	// Handle the OAuth settings
+                        	
+                        	return parent::process_admin_options();
                         }
                         
                         function init_form_fields() 
@@ -50,15 +57,58 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
                                                 'description' => __( 'The title customers will see during checkout.', 'woothemes' ),
                                                 'default' => __( 'Bitcoin', 'woothemes' )
                                         ),
-                                        'apiKey' => array(
-                                                'title' => __('API Key', 'woothemes'),
+                                        'tokens' => array(
+                                                'title' => __('Merchant Account', 'woothemes'),
                                                 'type' => 'text',
-                                                'description' => __('To be implemented'),
+                                                'description' => __(''),
+                                        ),
+                                        'clientId' => array(
+                                                'title' => __('Client ID', 'woothemes'),
+                                                'type' => 'text',
+                                                'description' => __(''),
+                                        ),
+                                        'clientSecret' => array(
+                                                'title' => __('Client Secret', 'woothemes'),
+                                                'type' => 'text',
+                                                'description' => __(''),
                                         ),
                                 );
                         }
                                 
                         public function admin_options() {
+                        
+				$pageUrl = 'http';
+				if ($_SERVER["HTTPS"] == "on") {
+					$pageUrl .= "s";
+				}
+				$pageUrl .= "://";
+				if ($_SERVER["SERVER_PORT"] != "80") {
+					$pageUrl .= $_SERVER["SERVER_NAME"].":".$_SERVER["SERVER_PORT"].$_SERVER["REQUEST_URI"];
+				} else {
+					$pageUrl .= $_SERVER["SERVER_NAME"].$_SERVER["REQUEST_URI"];
+				}
+				$params = $_GET;
+				$params['coinbase_oauth_callback'] = true;
+				unset($params['saved']); // Do not include 'saved' parameter in redirect URL
+				unset($params['code']); // Do not include 'code' parameter in redirect URL
+                        
+                        	$redirectUrl = strtok($pageUrl,'?');
+                        	$redirectUrlWithQuery = $redirectUrl . "?" . http_build_query($params);
+                        	
+                        	unset($params['coinbase_oauth_callback']);
+                        	$formSubmitUrl = $redirectUrl . "?" . http_build_query($params);
+                        	
+                        	require_once(plugin_dir_path(__FILE__).'coinbase-php'.DIRECTORY_SEPARATOR.'Coinbase.php');
+                        	$oauth = new Coinbase_Oauth($this->settings['clientId'], $this->settings['clientSecret'], $redirectUrlWithQuery);
+                        	$oauthUrl = $oauth->createAuthorizeUrl('merchant');
+                        	
+                        	if(isset($_GET['coinbase_oauth_callback'])) {
+                        		// This page request is a callback from OAuth authorize
+                        		// Get tokens
+                        		$tokens = $oauth->getTokens($_GET['code']);
+                        		// They are saved in the javascript below
+                        	}
+                        
                                 ?>
                                 <h3><?php _e('Coinbase', 'woothemes'); ?></h3>
                                 <p><?php _e('Accept bitcoin with Coinbase.', 'woothemes'); ?></p>
@@ -68,6 +118,49 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
                                         $this->generate_settings_html();
                                 ?>
                                 </table>
+                                <style type="text/css">
+                                	.woocommerce_coinbase_list {
+                                		list-style: disc outside none;
+                                	}
+                                	.woocommerce_coinbase_list > li {
+                                		margin-left: 30px;
+                                	}
+                                </style>
+                                <script type="text/javascript">
+                                	function coinbase_processForm() {
+		                        	maInput = document.getElementById('woocommerce_coinbase_tokens');
+		                        	maInput.style.display = 'none';
+		                        	var instructions = document.createElement("p");
+		                        	
+		                        	var haveTokens = maInput.value.length > 0;
+		                        	var haveClient = document.getElementById('woocommerce_coinbase_clientId').value.length > 0;
+		                        	
+		                        	if (haveTokens) {
+		                        		ihtml = "<b>Merchant account connected.</b> <a href=\"javascript:coinbase_disconnect();\">Disconnect account</a>";
+		                        	} else if (haveClient) {
+		                        		ihtml = "<b>No merchant account connected.</b> To connect a merchant account, <a href=\"<?php echo $oauthUrl; ?>\">click here</a>.";
+		                        	} else {
+		                        		ihtml = "<b>No merchant account connected.</b> To connect a merchant account, go to <a href=\"https://coinbase.com/oauth/applications/new\">https://coinbase.com/oauth/applications/new</a> and enter the following values:<br><ul class='woocommerce_coinbase_list'><li><b>Name:</b> a name for this WooCommerce installation.</li><li><b>Redirect uri:</b> <input type='text' value='<?php echo $redirectUrl; ?>' readonly></li></ul>Click 'Create Application' and then copy the generated Client ID and Client Secret into the fields below.";
+		                        	}
+		                        	
+		                        	instructions.innerHTML = ihtml;
+		                        	maInput.parentNode.insertBefore(instructions, maInput.nextSibling);
+		                        	
+		                        	<?php if(isset($tokens)) { ?>
+		                        		document.getElementById('woocommerce_coinbase_tokens').value = <?php echo json_encode(serialize($tokens)); ?>;
+		                        		document.getElementById('woocommerce_coinbase_tokens').form.action = <?php echo json_encode($formSubmitUrl); ?>;
+		                        		document.getElementById('woocommerce_coinbase_tokens').form.submit();
+		                        	<?php } ?>
+                                	}
+                                	coinbase_processForm();
+                                	
+                                	function coinbase_disconnect() {
+	                        		document.getElementById('woocommerce_coinbase_tokens').value = "";
+	                        		document.getElementById('woocommerce_coinbase_clientId').value = "";
+	                        		document.getElementById('woocommerce_coinbase_clientSecret').value = "";
+	                        		document.getElementById('woocommerce_coinbase_tokens').form.submit();
+                                	}
+                                </script>
                                 <?php
                         }
 
@@ -103,19 +196,34 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
 					'callback_url' => get_option('siteurl') . "/?coinbase_callback=" . $callbackSecret,
 					'success_url' => add_query_arg('key', $order->order_key, add_query_arg('order', $order_id, get_permalink(get_option('woocommerce_thanks_page_id')))) ."&coinbase_orderpage",
 					'info_url' => get_option('siteurl'),
-					'cancel_url' => get_option('siteurl'),
+					'cancel_url' => get_option('siteurl') . "?coinbase_ordercancel",
 				);
-				
-				$woocommerce->add_error(var_export($params, TRUE));
 
 				try {
-					$coinbase = new Coinbase('fb9c14477034b3b3f979d91ddc988cdd6ad71fe56b64cd6426cdbc0e012d8559');
+					$oauth = new Coinbase_Oauth($this->settings['clientId'], $this->settings['clientSecret'], null);
+					$tokens = unserialize($this->settings['tokens']);
+					$coinbase = new Coinbase($oauth, $tokens);
                                 	$code = $coinbase->createButton($name, $amount, $currency, $custom, $params)->button->code;
                                 } catch (Coinbase_TokensExpiredException $e) {
-                                	// To be implemented...
+                                	// Try to refresh tokens
+                                	try {
+                                		$tokens = $oauth->refreshTokens($tokens);
+                                	} catch (Exception $e) {
+                                        	$woocommerce->add_error(__('Sorry, but there was an error processing your order. Please try again or try a different payment method. (token refresh error)'));
+                                        	return;
+                                	}
+                                	
+                                	// Save tokens
+                                	$settings = get_option('woocommerce_coinbase_settings');
+                                	$settings['tokens'] = serialize($tokens);
+                                	update_option('woocommerce_coinbase_settings', $settings);
+                                	$coinbase = new Coinbase($oauth, $tokens);
+                                	
+                                	// Try again
+                                	$code = $coinbase->createButton($name, $amount, $currency, $custom, $params)->button->code;
                                 } catch (Exception $e) {
                                         $order->add_order_note("Error while processing payment: " . var_export($e, TRUE));
-                                        $woocommerce->add_error(__('Sorry, but there was an error processing your order. Please try again or try a different payment method.'));
+                                        $woocommerce->add_error(__('Sorry, but there was an error processing your order. Please try again or try a different payment method. (' . $e->getMessage() . ')'));
                                         return;
                                 } 
                                 
