@@ -48,9 +48,13 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
                         $order = new WC_Order($orderId);
                         
                         if(in_array($order->status, array('on-hold', 'pending', 'failed'))) {
-                        	// Payment complete!
-                        	$order->payment_complete();
-                        	$order->add_order_note("Received confirmation for payment from Coinbase. Coinbase Order ID: $coinbaseOrderId");
+                        	if($orderInfo->status == "completed") {
+                        		// Payment complete!
+                        		$order->payment_complete();
+                        		$order->add_order_note("Received confirmation for payment from Coinbase. Coinbase Order ID: $coinbaseOrderId");
+                        	} else {
+                        		$order->cancel_order("Coinbase payment cancelled.");
+                        	}
                         } else {
                         	throw new Exception("Coinbase: callback for non-pending order $orderId");
                         }
