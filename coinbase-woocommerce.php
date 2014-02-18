@@ -77,20 +77,20 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
                                 
                         public function admin_options() {
                         
-				$pageUrl = 'http';
-				if ($_SERVER["HTTPS"] == "on") {
-					$pageUrl .= "s";
-				}
-				$pageUrl .= "://";
-				if ($_SERVER["SERVER_PORT"] != "80") {
-					$pageUrl .= $_SERVER["SERVER_NAME"].":".$_SERVER["SERVER_PORT"].$_SERVER["REQUEST_URI"];
-				} else {
-					$pageUrl .= $_SERVER["SERVER_NAME"].$_SERVER["REQUEST_URI"];
-				}
-				$params = $_GET;
-				$params['coinbase_oauth_callback'] = true;
-				unset($params['saved']); // Do not include 'saved' parameter in redirect URL
-				unset($params['code']); // Do not include 'code' parameter in redirect URL
+				                  $pageUrl = 'http';
+				                  if ($_SERVER["HTTPS"] == "on") {
+					                  $pageUrl .= "s";
+				                  }
+				                  $pageUrl .= "://";
+				                  if ($_SERVER["SERVER_PORT"] != "80") {
+					                  $pageUrl .= $_SERVER["SERVER_NAME"].":".$_SERVER["SERVER_PORT"].$_SERVER["REQUEST_URI"];
+				                  } else {
+					                  $pageUrl .= $_SERVER["SERVER_NAME"].$_SERVER["REQUEST_URI"];
+				                  }
+				                  $params = $_GET;
+				                  $params['coinbase_oauth_callback'] = true;
+				                  unset($params['saved']); // Do not include 'saved' parameter in redirect URL
+				                  unset($params['code']); // Do not include 'code' parameter in redirect URL
                         
                         	$redirectUrl = strtok($pageUrl,'?');
                         	$redirectUrlWithQuery = $redirectUrl . "?" . http_build_query($params);
@@ -177,7 +177,7 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
 
                         function process_payment( $order_id ) {
                                 
-        			require_once(plugin_dir_path(__FILE__).'coinbase-php'.DIRECTORY_SEPARATOR.'Coinbase.php');
+        			                  require_once(plugin_dir_path(__FILE__).'coinbase-php'.DIRECTORY_SEPARATOR.'Coinbase.php');
                                 global $woocommerce;
 
                                 $order = &new WC_Order( $order_id );
@@ -191,26 +191,26 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
                                 }
                                 
                                 $name = 'Order #' . $order_id;
-				$amount = $order->order_total;
-                                $currency = get_woocommerce_currency();
-				$custom = $order_id;
-				$params = array(
-					'description' => $name,
-					'callback_url' => get_option('siteurl') . "/?coinbase_callback=" . $callbackSecret,
-					'success_url' => add_query_arg('key', $order->order_key, add_query_arg('order', $order_id, get_permalink(get_option('woocommerce_thanks_page_id')))) ."&coinbase_orderpage",
-					'info_url' => get_option('siteurl'),
-					'cancel_url' => get_option('siteurl') . "?coinbase_ordercancel",
-				);
+				                        $amount = $order->order_total;
+                                                        $currency = get_woocommerce_currency();
+				                        $custom = $order_id;
+				                        $params = array(
+					                        'description' => $name,
+					                        'callback_url' => get_option('siteurl') . "/?coinbase_callback=" . $callbackSecret,
+					                        'success_url' => $this->get_return_url( $order ) ."&coinbase_orderpage",
+					                        'info_url' => get_option('siteurl'),
+					                        'cancel_url' => get_option('siteurl') . "?coinbase_ordercancel",
+				                        );
 				
-				$oauth = new Coinbase_Oauth($this->settings['clientId'], $this->settings['clientSecret'], null);
-				$tokens = unserialize($this->settings['tokens']);
-				if($tokens == "") {
-		                	$woocommerce->add_error(__('Sorry, but there was an error processing your order. Please try again or try a different payment method. (plugin not configured)'));
-		                	return;
-				}
+				                        $oauth = new Coinbase_Oauth($this->settings['clientId'], $this->settings['clientSecret'], null);
+				                        $tokens = unserialize($this->settings['tokens']);
+				                        if($tokens == "") {
+		                                        	$woocommerce->add_error(__('Sorry, but there was an error processing your order. Please try again or try a different payment method. (plugin not configured)'));
+		                                        	return;
+				                        }
 
-				try {
-					$coinbase = new Coinbase($oauth, $tokens);
+				                        try {
+					                        $coinbase = new Coinbase($oauth, $tokens);
                                 	$code = $coinbase->createButton($name, $amount, $currency, $custom, $params)->button->code;
                                 } catch (Coinbase_TokensExpiredException $e) {
                                 	// Try to refresh tokens
