@@ -147,19 +147,22 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
 		                        	maInput.parentNode.insertBefore(instructions, maInput.nextSibling);
 		                        	
 		                        	<?php if(isset($tokens)) { ?>
+		                        	function coinbase_submitTokens() {
 		                        		document.getElementById('woocommerce_coinbase_tokens').value = <?php echo json_encode(serialize($tokens)); ?>;
 		                        		document.getElementById('woocommerce_coinbase_tokens').form.action = <?php echo json_encode($formSubmitUrl); ?>;
 		                        		document.getElementById('woocommerce_coinbase_tokens').form.submit();
+		                          }
+		                          addLoadEvent(coinbase_submitTokens);
 		                        	<?php } ?>
-                                	}
-                                	coinbase_processForm();
-                                	
-                                	function coinbase_disconnect() {
+                          	}
+                          	coinbase_processForm();
+
+                          	function coinbase_disconnect() {
 	                        		document.getElementById('woocommerce_coinbase_tokens').value = "";
 	                        		document.getElementById('woocommerce_coinbase_clientId').value = "";
 	                        		document.getElementById('woocommerce_coinbase_clientSecret').value = "";
 	                        		document.getElementById('woocommerce_coinbase_tokens').form.submit();
-                                	}
+                          	}
                                 </script>
                                 <?php
                         }
