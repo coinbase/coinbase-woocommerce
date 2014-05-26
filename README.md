@@ -16,3 +16,5 @@ To install the plugin:
 5. Navigate to WooCommerce > Settings, and then click on the Checkout tab at the top of the screen.
 6. Click on Coinbase.
 7. Enter your API Credentials and click on 'Save changes'.
+
+NOTE: Do not set the callback and redirect URLs manually on coinbase.com as this will interfere with the operation of the plugin.
