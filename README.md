@@ -1,7 +1,7 @@
 coinbase-woocommerce
 ====================
 
-Accept Bitcoin on your WooCommerce-powered website.
+Accept Bitcoin on your WooCommerce-powered website with Coinbase.
 
 ## Installation
 
