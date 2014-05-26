@@ -282,5 +282,3 @@ function coinbase_woocommerce_init() {
   add_action('init', 'woocommerce_handle_coinbase_return');
   add_filter('woocommerce_payment_gateways', 'woocommerce_add_coinbase_gateway' );
 }
-
-// TODO submit to woothemes and wordpress plugins
