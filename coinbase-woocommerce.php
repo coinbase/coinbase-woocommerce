@@ -166,13 +166,13 @@ function coinbase_woocommerce_init() {
       $cancel_url = add_query_arg('order_key', $order->order_key, $cancel_url);
 
       $params = array(
-        'name' => 'Order #' . $order_id,
-        'price_string' => $order->get_total(),
+        'name'               => 'Order #' . $order_id,
+        'price_string'       => $order->get_total(),
         'price_currency_iso' => get_woocommerce_currency(),
-        'callback_url' => $this->notify_url,
-        'custom' => $order_id,
-        'success_url' => $success_url,
-        'cancel_url' => $cancel_url,
+        'callback_url'       => $this->notify_url,
+        'custom'             => $order_id,
+        'success_url'        => $success_url,
+        'cancel_url'         => $cancel_url,
       );
 
       $api_key = $this->get_option('apiKey');
