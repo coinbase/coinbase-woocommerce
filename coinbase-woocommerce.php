@@ -7,6 +7,7 @@
  * Author: Coinbase Inc.
  * Author URI: https://coinbase.com
  * License: MIT
+ * Text Domain: coinbase-woocommerce
  */
 
 /*  Copyright 2014 Coinbase Inc.
@@ -34,251 +35,272 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 */
 
-add_action('plugins_loaded', 'coinbase_woocommerce_init', 0);
+if (!defined('ABSPATH')) {
+	exit; // Exit if accessed directly
+}
 
-function coinbase_woocommerce_init() {
+if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins')))) {
 
-   if ( !class_exists( 'WC_Payment_Gateway' ) )
-      return;
+	function coinbase_woocommerce_init() {
 
-  /**
-    * Coinbase Payment Gateway
-    *
-    * Provides a Coinbase Payment Gateway.
-    *
-    * @class       WC_Gateway_Coinbase
-    * @extends     WC_Payment_Gateway
-    * @version     2.0.0
-    * @author      Coinbase Inc.
-    */
-  class WC_Gateway_Coinbase extends WC_Payment_Gateway {
-    var $notify_url;
+		if (!class_exists('WC_Payment_Gateway'))
+			return;
 
-    public function __construct() {
-      $this->id                = 'coinbase';
-      $this->icon              = WP_PLUGIN_URL . "/" . plugin_basename(dirname(__FILE__)) . '/coinbase.png';
+		/**
+		 * Coinbase Payment Gateway
+		 *
+		 * Provides a Coinbase Payment Gateway.
+		 *
+		 * @class       WC_Gateway_Coinbase
+		 * @extends     WC_Payment_Gateway
+		 * @version     2.0.0
+		 * @author      Coinbase Inc.
+		 */
+		class WC_Gateway_Coinbase extends WC_Payment_Gateway {
+			var $notify_url;
 
-      $this->has_fields        = false;
-      $this->order_button_text = __( 'Proceed to Coinbase', 'woothemes' );
-      $this->notify_url        = $this->construct_notify_url();
+			public function __construct() {
+				$this->id   = 'coinbase';
+				$this->icon = WP_PLUGIN_URL . "/" . plugin_basename(dirname(__FILE__)) . '/coinbase.png';
 
-      $this->init_form_fields();
-      $this->init_settings();
+				$this->has_fields        = false;
+				$this->order_button_text = __('Proceed to Coinbase', 'coinbase-woocommerce');
+				$this->notify_url        = $this->construct_notify_url();
 
-      $this->title = $this->get_option('title');
-      $this->description = "Pay with bitcoin, a virtual currency. <a href='http://bitcoin.org/' target='_blank'>What is bitcoin?</a>";
+				$this->init_form_fields();
+				$this->init_settings();
 
-      // Actions
-      add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
-      add_action( 'woocommerce_receipt_coinbase', array( $this, 'receipt_page' ) );
+				$this->title       = $this->get_option('title');
+				$this->description =
+					__('Pay with bitcoin, a virtual currency.', 'coinbase-woocommerce')
+					. " <a href='http://bitcoin.org/' target='_blank'>"
+					. __('What is bitcoin?', 'coinbase-woocommerce')
+					. "</a>";
 
-      // Payment listener/API hook
-      add_action( 'woocommerce_api_wc_gateway_coinbase', array( $this, 'check_coinbase_callback' ) );
-    }
+				// Actions
+				add_action('woocommerce_update_options_payment_gateways_' . $this->id, array(
+					$this,
+					'process_admin_options'
+				));
+				add_action('woocommerce_receipt_coinbase', array(
+					$this,
+					'receipt_page'
+				));
 
-    public function admin_options() {
-      echo '<h3>'.__('Coinbase Payment Gateway', 'woothemes').'</h3>';
-      $coinbase_account_email = get_option("coinbase_account_email");
-      $coinbase_error_message = get_option("coinbase_error_message");
-      if ($coinbase_account_email != false) {
-        echo '<p>'."Successfully connected Coinbase account '$coinbase_account_email'".'</p>';
-      } elseif ($coinbase_error_message != false) {
-        echo '<p>'."Could not validate API Key: $coinbase_error_message".'</p>';
-      }
-      echo '<table class="form-table">';
-      $this->generate_settings_html();
-      echo '</table>';
-    }
+				// Payment listener/API hook
+				add_action('woocommerce_api_wc_gateway_coinbase', array(
+					$this,
+					'check_coinbase_callback'
+				));
+			}
 
-    function process_admin_options() {
-      if (!parent::process_admin_options())
-        return false;
+			public function admin_options() {
+				echo '<h3>' . __('Coinbase Payment Gateway', 'coinbase-woocommerce') . '</h3>';
+				$coinbase_account_email = get_option("coinbase_account_email");
+				$coinbase_error_message = get_option("coinbase_error_message");
+				if ($coinbase_account_email != false) {
+					echo '<p>' . __('Successfully connected Coinbase account', 'coinbase-woocommerce') . " '$coinbase_account_email'" . '</p>';
+				} elseif ($coinbase_error_message != false) {
+					echo '<p>' . __('Could not validate API Key:', 'coinbase-woocommerce') . " $coinbase_error_message" . '</p>';
+				}
+				echo '<table class="form-table">';
+				$this->generate_settings_html();
+				echo '</table>';
+			}
 
-      require_once(plugin_dir_path(__FILE__).'coinbase-php'.DIRECTORY_SEPARATOR.'Coinbase.php');
+			function process_admin_options() {
+				if (!parent::process_admin_options())
+					return false;
 
-      $api_key = $this->get_option('apiKey');
-      $api_secret = $this->get_option('apiSecret');
+				require_once(plugin_dir_path(__FILE__) . 'coinbase-php' . DIRECTORY_SEPARATOR . 'Coinbase.php');
 
-      // Validate merchant API key
-      try {
-        $coinbase = Coinbase::withApiKey($api_key, $api_secret);
-        $user = $coinbase->getUser();
-        update_option("coinbase_account_email", $user->email);
-        update_option("coinbase_error_message", false);
-      } catch (Exception $e) {
-        $error_message = $e->getMessage();
-        update_option("coinbase_account_email", false);
-        update_option("coinbase_error_message", $error_message);
-        return;
-      }
-    }
+				$api_key    = $this->get_option('apiKey');
+				$api_secret = $this->get_option('apiSecret');
 
-    function construct_notify_url() {
-      $callback_secret = get_option("coinbase_callback_secret");
-      if ($callback_secret == false) {
-        $callback_secret = sha1(openssl_random_pseudo_bytes(20));
-        update_option("coinbase_callback_secret", $callback_secret);
-      }
-      $notify_url = WC()->api_request_url( 'WC_Gateway_Coinbase' );
-      $notify_url = add_query_arg('callback_secret', $callback_secret, $notify_url);
-      return $notify_url;
-    }
+				// Validate merchant API key
+				try {
+					$coinbase = Coinbase::withApiKey($api_key, $api_secret);
+					$user     = $coinbase->getUser();
+					update_option("coinbase_account_email", $user->email);
+					update_option("coinbase_error_message", false);
+				}
+				catch (Exception $e) {
+					$error_message = $e->getMessage();
+					update_option("coinbase_account_email", false);
+					update_option("coinbase_error_message", $error_message);
+					return;
+				}
+			}
 
-    function init_form_fields() {
-      $this->form_fields = array(
-        'enabled' => array(
-          'title' => __( 'Enable Coinbase plugin', 'woothemes' ),
-          'type' => 'checkbox',
-          'label' => __( 'Show bitcoin as an option to customers during checkout?', 'woothemes' ),
-          'default' => 'yes'
-        ),
-        'title' => array(
-          'title' => __( 'Title', 'woothemes' ),
-          'type' => 'text',
-          'description' => __( 'The title customers will see during checkout.', 'woothemes' ),
-          'default' => __( 'Bitcoin', 'woothemes' )
-        ),
-        'apiKey' => array(
-          'title' => __('API Key', 'woothemes'),
-          'type' => 'text',
-          'description' => __(''),
-        ),
-        'apiSecret' => array(
-          'title' => __('API Secret', 'woothemes'),
-          'type' => 'password',
-          'description' => __(''),
-        ),
-      );
-    }
+			function construct_notify_url() {
+				$callback_secret = get_option("coinbase_callback_secret");
+				if ($callback_secret == false) {
+					$callback_secret = sha1(openssl_random_pseudo_bytes(20));
+					update_option("coinbase_callback_secret", $callback_secret);
+				}
+				$notify_url = WC()->api_request_url('WC_Gateway_Coinbase');
+				$notify_url = add_query_arg('callback_secret', $callback_secret, $notify_url);
+				return $notify_url;
+			}
 
-    function process_payment( $order_id ) {
+			function init_form_fields() {
+				$this->form_fields = array(
+					'enabled' => array(
+						'title' => __('Enable Coinbase plugin', 'coinbase-woocommerce'),
+						'type' => 'checkbox',
+						'label' => __('Show bitcoin as an option to customers during checkout?', 'coinbase-woocommerce'),
+						'default' => 'yes'
+					),
+					'title' => array(
+						'title' => __('Title', 'coinbase-woocommerce'),
+						'type' => 'text',
+						'description' => __('The title customers will see during checkout.', 'coinbase-woocommerce'),
+						'default' => __('Bitcoin', 'coinbase-woocommerce')
+					),
+					'apiKey' => array(
+						'title' => __('API Key', 'coinbase-woocommerce'),
+						'type' => 'text',
+						'description' => __('')
+					),
+					'apiSecret' => array(
+						'title' => __('API Secret', 'coinbase-woocommerce'),
+						'type' => 'password',
+						'description' => __('')
+					)
+				);
+			}
 
-      require_once(plugin_dir_path(__FILE__).'coinbase-php'.DIRECTORY_SEPARATOR.'Coinbase.php');
-      global $woocommerce;
+			function process_payment($order_id) {
 
-      $order = new WC_Order( $order_id );
+				require_once(plugin_dir_path(__FILE__) . 'coinbase-php' . DIRECTORY_SEPARATOR . 'Coinbase.php');
+				global $woocommerce;
 
-      $success_url = add_query_arg('return_from_coinbase', true, $this->get_return_url( $order ));
-      
-      // Coinbase mangles the order param so we have to put it somewhere else and restore it on init
-      $cancel_url = add_query_arg('return_from_coinbase', true, $order->get_cancel_order_url() );
-      $cancel_url = add_query_arg('cancelled', true, $cancel_url);
-      $cancel_url = add_query_arg('order_key', $order->order_key, $cancel_url);
+				$order = new WC_Order($order_id);
 
-      $params = array(
-        'name'               => 'Order #' . $order_id,
-        'price_string'       => $order->get_total(),
-        'price_currency_iso' => get_woocommerce_currency(),
-        'callback_url'       => $this->notify_url,
-        'custom'             => $order_id,
-        'success_url'        => $success_url,
-        'cancel_url'         => $cancel_url,
-      );
+				$success_url = add_query_arg('return_from_coinbase', true, $this->get_return_url($order));
 
-      $api_key = $this->get_option('apiKey');
-      $api_secret = $this->get_option('apiSecret');
+				// Coinbase mangles the order param so we have to put it somewhere else and restore it on init
+				$cancel_url = add_query_arg('return_from_coinbase', true, $order->get_cancel_order_url());
+				$cancel_url = add_query_arg('cancelled', true, $cancel_url);
+				$cancel_url = add_query_arg('order_key', $order->order_key, $cancel_url);
 
-      if($api_key == '' || $api_secret == '') {
-        $woocommerce->add_error(__('Sorry, but there was an error processing your order. Please try again or try a different payment method. (plugin not configured)'));
-        return;
-      }
+				$params = array(
+					'name'               => 'Order #' . $order_id,
+					'price_string'       => $order->get_total(),
+					'price_currency_iso' => get_woocommerce_currency(),
+					'callback_url'       => $this->notify_url,
+					'custom'             => $order_id,
+					'success_url'        => $success_url,
+					'cancel_url'         => $cancel_url,
+				);
 
-      try {
-        $coinbase = Coinbase::withApiKey($api_key, $api_secret);
-        $code = $coinbase->createButtonWithOptions($params)->button->code;
-      } catch (Exception $e) {
-        $order->add_order_note("Error while processing coinbase payment: " . var_export($e, TRUE));
-        $woocommerce->add_error(__('Sorry, but there was an error processing your order. Please try again or try a different payment method. (' . $e->getMessage() . ')'));
-        return;
-      }
+				$api_key    = $this->get_option('apiKey');
+				$api_secret = $this->get_option('apiSecret');
 
-      return array(
-        'result'    => 'success',
-        'redirect'  => "https://coinbase.com/checkouts/$code",
-      );                      
-    }
+				if ($api_key == '' || $api_secret == '') {
+					$woocommerce->add_error(__('Sorry, but there was an error processing your order. Please try again or try a different payment method. (plugin not configured)', 'coinbase-woocommerce'));
+					return;
+				}
 
-    function check_coinbase_callback() {
-      $callback_secret = get_option("coinbase_callback_secret");
-      if ($callback_secret != false && $callback_secret == $_REQUEST['callback_secret']) {
-        $post_body = json_decode(file_get_contents("php://input"));
-        if (isset ($post_body->order)) {
-          $coinbase_order = $post_body->order;
-          $order_id       = $coinbase_order->custom;
-          $order          = new WC_Order( $order_id );
-        } else if (isset ($post_body->payout) ) {
-          header( 'HTTP/1.1 200 OK' );
-          exit( "Coinbase Payout Callback Ignored" );
-        } else {
-          header("HTTP/1.1 400 Bad Request");
-          exit( "Unrecognized Coinbase Callback" );
-        }
-      } else {
-        header("HTTP/1.1 401 Not Authorized");
-        exit("Spoofed callback");
-      }
-      
-      // Legitimate order callback from Coinbase
-      header( 'HTTP/1.1 200 OK' );
+				try {
+					$coinbase = Coinbase::withApiKey($api_key, $api_secret);
+					$code     = $coinbase->createButtonWithOptions($params)->button->code;
+				}
+				catch (Exception $e) {
+					$order->add_order_note(__('Error while processing coinbase payment:', 'coinbase-woocommerce') . ' ' . var_export($e, TRUE));
+					$woocommerce->add_error(__('Sorry, but there was an error processing your order. Please try again or try a different payment method.', 'coinbase-woocommerce'));
+					return;
+				}
 
-      // Add Coinbase metadata to the order
-      update_post_meta( $order->id, 'Coinbase Order ID', wc_clean( $coinbase_order->id ) );
-      if ( isset ( $coinbase_order->customer ) && isset ( $coinbase_order->customer->email ) ) {
-        update_post_meta( $order->id, 'Coinbase Account of Payer', wc_clean( $coinbase_order->customer->email ) );
-      }
+				return array(
+					'result'   => 'success',
+					'redirect' => "https://coinbase.com/checkouts/$code"
+				);
+			}
 
-      switch ( strtolower($coinbase_order->status) ) {
+			function check_coinbase_callback() {
+				$callback_secret = get_option("coinbase_callback_secret");
+				if ($callback_secret != false && $callback_secret == $_REQUEST['callback_secret']) {
+					$post_body = json_decode(file_get_contents("php://input"));
+					if (isset($post_body->order)) {
+						$coinbase_order = $post_body->order;
+						$order_id       = $coinbase_order->custom;
+						$order          = new WC_Order($order_id);
+					} else if (isset($post_body->payout)) {
+						header('HTTP/1.1 200 OK');
+						exit("Coinbase Payout Callback Ignored");
+					} else {
+						header("HTTP/1.1 400 Bad Request");
+						exit("Unrecognized Coinbase Callback");
+					}
+				} else {
+					header("HTTP/1.1 401 Not Authorized");
+					exit("Spoofed callback");
+				}
 
-        case 'completed':
+				// Legitimate order callback from Coinbase
+				header('HTTP/1.1 200 OK');
 
-          // Check order not already completed
-          if ( $order->status == 'completed' ) {
-             exit;
-          }
+				// Add Coinbase metadata to the order
+				update_post_meta($order->id, __('Coinbase Order ID', 'coinbase-woocommerce'), wc_clean($coinbase_order->id));
+				if (isset($coinbase_order->customer) && isset($coinbase_order->customer->email)) {
+					update_post_meta($order->id, __('Coinbase Account of Payer', 'coinbase-woocommerce'), wc_clean($coinbase_order->customer->email));
+				}
 
-          $order->add_order_note( __( 'Coinbase payment completed', 'woothemes' ) );
-          $order->payment_complete();
+				switch (strtolower($coinbase_order->status)) {
 
-          break;
-        case 'canceled':
+					case 'completed':
 
-          $order->update_status( 'failed', __( 'Coinbase reports payment cancelled.', 'woothemes' ) );
-          break;
+						// Check order not already completed
+						if ($order->status == 'completed') {
+							exit;
+						}
 
-      }
+						$order->add_order_note(__('Coinbase payment completed', 'coinbase-woocommerce'));
+						$order->payment_complete();
 
-      exit;
-    }
-  }
+						break;
+					case 'canceled':
 
-  /**
-    * Add this Gateway to WooCommerce
-    **/
-  function woocommerce_add_coinbase_gateway($methods) 
-  {
-    $methods[] = 'WC_Gateway_Coinbase';
-    return $methods;
-  }
+						$order->update_status('failed', __('Coinbase reports payment cancelled.', 'coinbase-woocommerce'));
+						break;
 
-  function woocommerce_handle_coinbase_return() {
-    if (!isset($_GET['return_from_coinbase']))
-      return;
+				}
 
-    if (isset($_GET['cancelled'])) {
-      $order = new WC_Order($_GET['order']['custom']);
-      if ( $order->status != 'completed' ) {
-        $order->update_status( 'failed', __( 'Customer cancelled coinbase payment', 'woothemes' ) );
-      }
-    }
+				exit;
+			}
+		}
 
-    // Coinbase order param interferes with woocommerce
-    unset($_GET['order']);
-    unset($_REQUEST['order']);
-    if (isset($_GET['order_key'])) {
-      $_GET['order'] = $_GET['order_key'];
-    }
-  }
+		/**
+		 * Add this Gateway to WooCommerce
+		 **/
+		function woocommerce_add_coinbase_gateway($methods) {
+			$methods[] = 'WC_Gateway_Coinbase';
+			return $methods;
+		}
 
-  add_action('init', 'woocommerce_handle_coinbase_return');
-  add_filter('woocommerce_payment_gateways', 'woocommerce_add_coinbase_gateway' );
+		function woocommerce_handle_coinbase_return() {
+			if (!isset($_GET['return_from_coinbase']))
+				return;
+
+			if (isset($_GET['cancelled'])) {
+				$order = new WC_Order($_GET['order']['custom']);
+				if ($order->status != 'completed') {
+					$order->update_status('failed', __('Customer cancelled coinbase payment', 'coinbase-woocommerce'));
+				}
+			}
+
+			// Coinbase order param interferes with woocommerce
+			unset($_GET['order']);
+			unset($_REQUEST['order']);
+			if (isset($_GET['order_key'])) {
+				$_GET['order'] = $_GET['order_key'];
+			}
+		}
+
+		add_action('init', 'woocommerce_handle_coinbase_return');
+		add_filter('woocommerce_payment_gateways', 'woocommerce_add_coinbase_gateway');
+	}
+
+	add_action('plugins_loaded', 'coinbase_woocommerce_init', 0);
 }
