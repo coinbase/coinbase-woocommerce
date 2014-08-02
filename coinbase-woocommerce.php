@@ -71,11 +71,7 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 				$this->init_settings();
 
 				$this->title       = $this->get_option('title');
-				$this->description =
-					__('Pay with bitcoin, a virtual currency.', 'coinbase-woocommerce')
-					. " <a href='http://bitcoin.org/' target='_blank'>"
-					. __('What is bitcoin?', 'coinbase-woocommerce')
-					. "</a>";
+				$this->description = $this->get_option('description');
 
 				// Actions
 				add_action('woocommerce_update_options_payment_gateways_' . $this->id, array(
@@ -152,11 +148,20 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 						'default' => 'yes'
 					),
 					'title' => array(
-						'title' => __('Title', 'coinbase-woocommerce'),
+						'title' => __('Title', 'woocommerce'),
 						'type' => 'text',
-						'description' => __('The title customers will see during checkout.', 'coinbase-woocommerce'),
+						'description' => __('This controls the title which the user sees during checkout.', 'woocommerce'),
 						'default' => __('Bitcoin', 'coinbase-woocommerce')
 					),
+					'description' => array(
+						'title'       => __( 'Description', 'woocommerce' ),
+						'type'        => 'textarea',
+						'description' => __( 'This controls the description which the user sees during checkout.', 'woocommerce' ),
+						'default'     => __('Pay with bitcoin, a virtual currency.', 'coinbase-woocommerce')
+											. " <a href='http://bitcoin.org/' target='_blank'>"
+											. __('What is bitcoin?', 'coinbase-woocommerce')
+											. "</a>"
+	             	),
 					'apiKey' => array(
 						'title' => __('API Key', 'coinbase-woocommerce'),
 						'type' => 'text',
