@@ -3,7 +3,7 @@ Contributors: isaacwaller, aianus
 Tags: bitcoin, coinbase, woocommerce, e-commerce, ecommerce
 Requires at least: 3.0.1
 Tested up to: 3.9.1
-Stable tag: 2.1.1
+Stable tag: 2.1.2
 License: MIT
 License URI: http://opensource.org/licenses/MIT
 
