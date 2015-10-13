@@ -317,4 +317,20 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 	}
 
 	add_action('plugins_loaded', 'coinbase_woocommerce_init', 0);
+
+	// Add BTC to WooCommerce currency list
+	function add_btc_currency( $currencies ) {
+		$currencies['BTC'] = __( 'Bitcoin', 'woocommerce' );
+		return $currencies;
+	}
+
+	function add_btc_currency_symbol( $currency_symbol, $currency ) {
+		switch( $currency ) {
+			case 'BTC': $currency_symbol = 'Ƀ'; break;
+		}
+		return $currency_symbol;
+	}
+
+	add_filter( 'woocommerce_currencies', 'add_btc_currency' );
+	add_filter('woocommerce_currency_symbol', 'add_btc_currency_symbol', 10, 2);
 }
