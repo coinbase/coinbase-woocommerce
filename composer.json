@@ -1,0 +1,11 @@
+{
+    "name": "coinbase/coinbase-woocommerce",
+    "description": "The official Coinbase woocommerce checkout plugin",
+    "keywords": [ "bitcoin", "coinbase", "wordpress", "woocommerce" ],
+    "homepage": "https://www.coinbase.com",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "coinbase/coinbase": "^2.2"
+    }
+}
