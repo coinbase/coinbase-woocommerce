@@ -184,11 +184,6 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 
 				$success_url = add_query_arg('return_from_coinbase', true, $this->get_return_url($order));
 
-				// Coinbase mangles the order param so we have to put it somewhere else and restore it on init
-				$cancel_url = add_query_arg('return_from_coinbase', true, $order->get_cancel_order_url());
-				$cancel_url = add_query_arg('cancelled', true, $cancel_url);
-				$cancel_url = add_query_arg('order_key', $order->order_key, $cancel_url);
-
 				$params = array(
 					'name'               => 'Order #' . $order_id,
 					'price_string'       => $order->get_total(),
@@ -196,7 +191,6 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 					'callback_url'       => $this->notify_url,
 					'custom'             => $order_id,
 					'success_url'        => $success_url,
-					'cancel_url'         => $cancel_url,
 				);
 
 				$api_key    = $this->get_option('apiKey');
