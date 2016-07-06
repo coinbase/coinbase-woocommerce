@@ -3,7 +3,7 @@
  * Plugin Name: coinbase-woocommerce
  * Plugin URI: https://github.com/coinbase/coinbase-woocommerce
  * Description: Accept Bitcoin on your WooCommerce-powered website with Coinbase.
- * Version: 2.1.2
+ * Version: 2.1.3
  * Author: Coinbase Inc.
  * Author URI: https://coinbase.com
  * License: MIT
